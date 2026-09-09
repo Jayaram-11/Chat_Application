@@ -38,3 +38,18 @@ def decode_jwt(token:str =Depends(oauth2_scheme)):
         logger.error("Invalid token")
         return None
 
+# call this in Webscoket
+def decode_jwt_raw(token:str):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=["HS256"]
+        )
+        return payload
+
+    except jwt.ExpiredSignatureError:
+        return None
+
+    except jwt.InvalidTokenError:
+        return None

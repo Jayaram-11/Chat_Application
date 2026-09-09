@@ -52,7 +52,7 @@ def create_table():
             MESSAGE_ID INTEGER GENERATED ALWAYS AS IDENTITY
             (START WITH 1001)
             PRIMARY KEY,
-            ROOM_ID INTEGER REFERENCES NOT NULL REFERENCES CHAT_ROOMS(ROOM_ID),
+            ROOM_ID INTEGER NOT NULL REFERENCES CHAT_ROOMS(ROOM_ID),
             UID INTEGER NOT NULL REFERENCES USERS(UID),
             TIMESTAMP TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             MESSAGE TEXT NOT NULL
@@ -119,7 +119,9 @@ def fetch_hashed_password(email):
             (email,))
 
             record = cursor.fetchone()
-            return record[0]
+            if record is None:
+                return None
+        return record[0]
 
     except psycopg2.OperationalError as oe:
         logger.error(f"OperationalError at fetch hash passowrd:{oe}")
@@ -138,7 +140,9 @@ def fetch_userID(email):
             )
 
             record = cursor.fetchone()
-            return record[0]
+            if record is None:
+                return None
+        return record[0]
 
     except psycopg2.OperationalError as oe:
         logger.error(f"OperationalError at fetch userID:{oe}")
@@ -157,7 +161,9 @@ def fetch_name(email):
             )
 
             record = cursor.fetchone()
-            return record[0]
+            if record is None:
+                return None
+        return record[0]
 
     except psycopg2.OperationalError as oe:
         logger.error(f"OperationalError at fetch name:{oe}")
@@ -176,7 +182,8 @@ def fetch_room_id(room_name):
             )
 
             record = cursor.fetchone()
-
+            if record is None:
+                return None
         return record[0]
 
     except psycopg2.OperationalError as oe:

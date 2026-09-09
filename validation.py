@@ -17,17 +17,19 @@ def email_validator(email: str):
 
 
 def validate_password(password: str)->bool:
-    if re.match(r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*])(A-za-z\d!@#$%^&*){5,}$",password):
+    if re.match(r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*])(A-Za-z\d!@#$%^&*){5,}$",password):
         return True
     return False
 
 def email_password_validation(email:str,password:str)->bool:
-    return validate_email(email) and validate_password(password)
+    return email_validator(email) and validate_password(password)
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode("utf-8"),bcrypt.gensalt())
 
 def check_password(password, hashed_password):
+    if isinstance(hashed_password,memoryview):
+        hashed_password=bytes(hashed_password)
     return bcrypt.checkpw(password.encode("utf-8"),hashed_password)
 
 def validate_account(email:str,name:str,password:str)->bool:

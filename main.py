@@ -200,6 +200,5 @@ async def chat(websocket: WebSocket,room_name:str,payload=Depends(decode_jwt)):
         await manager.broadcast(room_id,f" {user_name} got disconnected")
 
 
-## BACKEND IS COMPLETED
-## TODO : Test the backend using AGY before moving to Flutter
+
 ## TODO: Frontedn UI using Flutter
