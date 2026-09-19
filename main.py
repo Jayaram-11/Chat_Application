@@ -5,8 +5,8 @@ from fastapi.responses import HTMLResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from models import CreateAccount
-from validation import validate_account,validate_login,email_password_validation
-from database import fetch_room_id,save_message,get_messages
+from validation import validate_account,validate_login,email_password_validation,validate_room_name
+from database import fetch_room_id,save_message,get_messages,insert_room
 from security import encode_jwt,decode_jwt
 app = FastAPI()
 
