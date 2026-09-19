@@ -117,6 +117,50 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "message":"Login Successful"
     }
 
+
+@app.post("/create-room/{room_name}",status_code=status.HTTP_201_CREATED)
+async def create_room(room_name:str,payload=Depends(decode_jwt())):
+    room_name_validated=validate_room_name(room_name)
+    if not room_name_validated:
+        raise HTTPException(
+            status_code=status.HTTP_411_LENGTH_REQUIRED,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"INCORRECT_FORMAT",
+                    "message": "Room name length should be between 0 and 32"
+                }
+            }
+        )
+    room_details_stored=insert_room(room_name)
+    if not room_details_stored:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"ROOM_ALREADY_EXISTS",
+                    "message":"Room already exists"
+                }
+            }
+        )
+    if room_details_stored is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"SERVER_ERROR",
+                    "message": "error from server side"
+                }
+            }
+        )
+    return {
+        "success":True,
+        "data":{},
+        "message":"Room created successfully"
+    }
+
 @app.get("/rooms/{room_id}/messages",status_code=status.HTTP_200_OK)
 async  def retrieve_room_messages(room_id:int):
     data_stored=get_messages(room_id)
