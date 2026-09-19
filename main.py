@@ -251,8 +251,12 @@ async def chat(websocket: WebSocket,room_name:str,payload=Depends(decode_jwt)):
     try:
         while True:
             data=await websocket.receive_text()
-            save_message(room_id,user_id,data)
-            #await manager.send_message(websocket,f"Message was: {data}")
+            is_message_saved_successfully=save_message(room_id,user_id,data)
+            # if msg failed to save, let only user know that msg was failed. Others should not know
+            if not is_message_saved_successfully:
+                await manager.send_message(websocket,f"Message failed")
+                continue
+            # broadcast successfully saved msgs alone
             await manager.broadcast(room_id,f" {user_name} said {data}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
