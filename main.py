@@ -223,7 +223,11 @@ class ConnectionManager:
 
     async def broadcast(self,room_id:int,message:str):
         for conn in self.room_connections[room_id].values():
-            await conn.send_text(message)
+            try:
+                await conn.send_text(message)
+            except WebSocketDisconnect:
+                self.disconnect(conn)
+                continue
 
 manager=ConnectionManager()
 
