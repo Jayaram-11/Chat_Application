@@ -9,6 +9,21 @@ from validation import validate_account,validate_login,email_password_validation
 from database import fetch_room_id,save_message,get_messages,insert_room
 from security import encode_jwt,decode_jwt
 app = FastAPI()
+#store limiter in fastapi application state
+app.state.limiter = limiter
+
+async  def custom_rate_limiter_handler(request:Request,exc:RateLimitExceeded):
+    return JSONResponse(
+        # returns code 429
+        status_code=exc.status_code,
+        content={
+            "success":False,
+            "message":"Too many requests. Please try again later"
+        },
+        headers={
+            "Retry-After":"30" #retry after 30secs
+        }
+    )
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
