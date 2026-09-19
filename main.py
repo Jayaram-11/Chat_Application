@@ -162,7 +162,18 @@ async def create_room(room_name:str,payload=Depends(decode_jwt())):
     }
 
 @app.get("/rooms/{room_id}/messages",status_code=status.HTTP_200_OK)
-async  def retrieve_room_messages(room_id:int):
+async  def retrieve_room_messages(room_id:int,payload=Depends(decode_jwt)):
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"NOT_LOGGED_IN",
+                    "message":"you need to login to access rooms"
+                }
+            }
+        )
     data_stored=get_messages(room_id)
     if data_stored is None:
         raise HTTPException(
