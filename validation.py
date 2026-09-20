@@ -44,8 +44,16 @@ def validate_login(email:str,password:str)->bool:
     if not valid_email:
         return False
     hashed_password = fetch_hashed_password(email)
+    if hashed_password is None:
+        return False
+
     valid_password=check_password(password, hashed_password)
     if not valid_password:
         return False
     return True
 
+def validate_room_name(room_name:str)->bool:
+    return 0<len(room_name) <32
+
+def validate_user_name(name:str):
+    return 2<len(name)<32
