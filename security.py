@@ -12,7 +12,7 @@ from database import fetch_name,fetch_userID
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 logger = logging.getLogger(__name__)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 
