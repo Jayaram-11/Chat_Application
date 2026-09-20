@@ -1,13 +1,25 @@
 import logging
-from fastapi import FastAPI, HTTPException, status,Depends
+from typing import Optional
+from fastapi import FastAPI, HTTPException, status,Depends,Request, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
+from starlette.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from slowapi import Limiter
 
 from models import CreateAccount
-from validation import validate_account,validate_login,email_password_validation,validate_room_name
+from validation import validate_account,validate_login,email_password_validation,validate_room_name,validate_user_name
 from database import fetch_room_id,save_message,get_messages,insert_room
 from security import encode_jwt,decode_jwt
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+#tells limiter how to identify client
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 #store limiter in fastapi application state
 app.state.limiter = limiter
@@ -25,9 +37,10 @@ async  def custom_rate_limiter_handler(request:Request,exc:RateLimitExceeded):
         }
     )
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+app.add_exception_handler(
+    RateLimitExceeded,custom_rate_limiter_handler
+        )
+
 
 html = """
 <!DOCTYPE html>
@@ -71,10 +84,23 @@ def health_check():
 
 
 @app.post("/create-account",status_code=status.HTTP_201_CREATED)
-async def create_account(data: CreateAccount):
+@limiter.limit("10/minute")
+async def create_account(data: CreateAccount,request:Request):
     email = data.email
     password = data.password
     name=data.name
+    valid_name=validate_user_name(name)
+    if not valid_name:
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"INCORRECT_FORMAT",
+                    "message":"Name length should be between 2 and 32"
+                }
+            }
+        )
     valid_data = email_password_validation(email,password)
     if not valid_data:
         raise HTTPException(
@@ -109,7 +135,8 @@ async def create_account(data: CreateAccount):
 
 
 @app.post("/login",status_code=status.HTTP_201_CREATED)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+async def login(request:Request,form_data: OAuth2PasswordRequestForm = Depends() ):
     email = form_data.username
     password = form_data.password
     success=validate_login(email,password)
@@ -134,7 +161,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @app.post("/create-room/{room_name}",status_code=status.HTTP_201_CREATED)
-async def create_room(room_name:str,payload=Depends(decode_jwt())):
+@limiter.limit("20/minute")
+async def create_room(request:Request, room_name:str,payload=Depends(decode_jwt)):
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success":False,
+                "error":{
+                    "code":"NOT_LOGGED_IN",
+                    "message":"Login to create room"
+                }
+            }
+        )
     room_name_validated=validate_room_name(room_name)
     if not room_name_validated:
         raise HTTPException(
@@ -177,7 +216,12 @@ async def create_room(room_name:str,payload=Depends(decode_jwt())):
     }
 
 @app.get("/rooms/{room_id}/messages",status_code=status.HTTP_200_OK)
-async  def retrieve_room_messages(room_id:int,payload=Depends(decode_jwt)):
+@limiter.limit("60/minute")
+async  def retrieve_room_messages(request:Request,
+                                  room_id:int,
+                                  payload=Depends(decode_jwt),
+                                  prev_id:Optional[int]=Query(default=None)
+                                    ):
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -189,8 +233,9 @@ async  def retrieve_room_messages(room_id:int,payload=Depends(decode_jwt)):
                 }
             }
         )
-    data_stored=get_messages(room_id)
-    if data_stored is None:
+    message_records=get_messages(room_id,prev_id)
+
+    if message_records is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -204,7 +249,8 @@ async  def retrieve_room_messages(room_id:int,payload=Depends(decode_jwt)):
     return {
         "success":True,
         "data":{
-            "message_data":data_stored
+            "message_data":message_records,
+            "next_cursor":message_records[-1][0]
         },
         "message": "Data retrieved successfully"
     }
@@ -273,6 +319,7 @@ async def chat(websocket: WebSocket,room_name:str,payload=Depends(decode_jwt)):
                 continue
             # broadcast successfully saved msgs alone
             await manager.broadcast(room_id,f" {user_name} said {data}")
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(room_id,f" {user_name} got disconnected")
